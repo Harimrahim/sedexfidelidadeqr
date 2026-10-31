@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sedex do Açaí - Fidelidade</title>
+<style>
+:root{
+  --roxo-escuro:#1c0533;
+  --roxo:#4b0f7a;
+  --roxo-vivo:#7a1fc2;
+  --amarelo:#ffc61a;
+  --verde:#4cc95a;
+  --branco:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif}
+body{
+  min-height:100vh;
+  background:radial-gradient(circle at 50% 0%,var(--roxo-vivo),var(--roxo) 45%,var(--roxo-escuro));
+  color:var(--branco);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.tela{display:none;width:100%;max-width:520px;text-align:center;animation:entra .5s ease}
+.tela.ativa{display:block}
+@keyframes entra{from{opacity:0;transform:translateY(25px) scale(.97)}to{opacity:1;transform:none}}
+.logo{width:min(80%,340px);border-radius:28px;box-shadow:0 0 60px rgba(255,198,26,.45);margin-bottom:28px}
+.logo-pequena{width:130px;margin-bottom:16px}
+.botao-gigante{
+  width:100%;padding:26px;font-size:2rem;font-weight:800;
+  background:var(--amarelo);color:var(--roxo-escuro);
+  border:none;border-radius:22px;cursor:pointer;
+  box-shadow:0 8px 0 #c79500;transition:transform .15s,box-shadow .15s;
+}
+.botao-gigante:active{transform:translateY(6px);box-shadow:0 2px 0 #c79500}
+.botao{
+  display:block;width:100%;padding:16px;font-size:1.1rem;font-weight:700;margin-top:14px;
+  background:var(--verde);color:var(--roxo-escuro);border:none;border-radius:14px;cursor:pointer;
+  text-decoration:none;text-align:center;
+}
+.botao:disabled{opacity:.45;cursor:not-allowed}
+.caixa{
+  background:rgba(255,255,255,.1);backdrop-filter:blur(8px);
+  border:2px solid rgba(255,198,26,.6);border-radius:24px;padding:26px;
+}
+h2{font-size:1.5rem;margin-bottom:8px;color:var(--amarelo)}
+p.sub{opacity:.85;margin-bottom:16px}
+input{
+  width:100%;padding:15px;margin-top:10px;font-size:1.05rem;
+  border-radius:12px;border:2px solid transparent;outline:none;
+}
+input:focus{border-color:var(--amarelo)}
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-height:46vh;overflow-y:auto;padding:4px;text-align:left}
+.item{
+  background:rgba(255,255,255,.12);border:2px solid transparent;border-radius:14px;
+  padding:12px;cursor:pointer;transition:.2s;font-weight:600;font-size:.95rem;
+  display:flex;align-items:center;gap:8px;
+}
+.item .marca{
+  width:22px;height:22px;border-radius:50%;border:2px solid var(--amarelo);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;
+}
+.item.sel{background:var(--amarelo);color:var(--roxo-escuro);border-color:var(--verde);transform:scale(1.03)}
+.item.sel .marca{background:var(--verde);border-color:var(--verde)}
+.item.travado{opacity:.35;cursor:not-allowed}
+.contador{margin:12px 0 4px;font-weight:700;color:var(--amarelo)}
+.cartao{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}
+.carimbo{
+  aspect-ratio:1;border-radius:50%;border:3px dashed var(--amarelo);
+  display:flex;align-items:center;justify-content:center;font-size:1.7rem;font-weight:800;
+}
+.carimbo.cheio{background:var(--amarelo);color:var(--roxo-escuro);border-style:solid;animation:pop .4s}
+@keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.premio{font-size:4rem;animation:pop .6s}
+.resumo{margin-top:12px;font-size:.95rem;opacity:.9}
+.codigo{
+  font-size:2rem;font-weight:800;letter-spacing:3px;margin:12px 0;padding:14px;
+  background:var(--branco);color:var(--roxo-escuro);border-radius:14px;animation:pop .5s;
+}
+.resgate{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.25)}
+.erro{color:#ffb3b3;font-weight:600;min-height:1.2em;margin-top:8px}
+.sair{background:none;border:none;color:var(--branco);opacity:.7;margin-top:18px;cursor:pointer;text-decoration:underline}
+#faixaTeste{display:none;position:fixed;top:0;left:0;right:0;z-index:9;padding:6px;text-align:center;
+  font-weight:700;font-size:.85rem;background:var(--amarelo);color:var(--roxo-escuro)}
+</style>
+</head>
+<body>
+
+<div id="faixaTeste">MODO TESTE: dados só neste aparelho. Abra com ?teste=1&q=QR-TESTE para ganhar carimbo</div>
+
+<!-- TELA 1: INÍCIO -->
+<section class="tela ativa" id="telaInicio">
+  <img class="logo" src="logo.png" alt="Sedex do Açaí">
+  <button class="botao-gigante" onclick="ir('telaLogin')">Já sou cliente</button>
+</section>
+
+<!-- TELA 2: LOGIN -->
+<section class="tela" id="telaLogin">
+  <img class="logo logo-pequena" src="logo.png" alt="Sedex do Açaí">
+  <div class="caixa">
+    <h2>Entrar</h2>
+    <p class="sub">Digite seus dados para acompanhar seu cartão fidelidade.</p>
+    <input id="nome" placeholder="Seu nome">
+    <input id="telefone" type="tel" placeholder="Seu telefone com DDD">
+    <button class="botao" id="btnEntrar" onclick="entrar()">Continuar</button>
+  </div>
+</section>
+
+<!-- TELA 3: ENQUETE -->
+<section class="tela" id="telaEnquete">
+  <div class="caixa">
+    <h2>Como você gostaria de ganhar um açaí?</h2>
+    <p class="sub">Escolha até 4 adicionais para o seu prêmio.</p>
+    <div class="contador" id="contador">0 de 4 escolhidos</div>
+    <div class="grade" id="grade"></div>
+    <button class="botao" id="btnSalvar" onclick="salvarEnquete()" disabled>Salvar minhas escolhas</button>
+  </div>
+</section>
+
+<!-- TELA 4: CARTÃO -->
+<section class="tela" id="telaCartao">
+  <img class="logo logo-pequena" src="logo.png" alt="Sedex do Açaí">
+  <div class="caixa">
+    <h2 id="ola"></h2>
+    <p class="sub">Complete 8 compras e ganhe uma marmita de açaí de 700 g!</p>
+    <div class="cartao" id="cartao"></div>
+    <div id="faltam" class="contador"></div>
+    <div class="resumo" id="resumo"></div>
+    <div class="resgate">
+      <p class="sub">Fez outro pedido hoje? Peça ao entregador para mostrar o QR Code e escaneie de novo para ganhar mais 1 carimbo.</p>
+      <div class="erro" id="msgCodigo"></div>
+    </div>
+    <button class="sair" onclick="sair()">Sair</button>
+  </div>
+</section>
+
+<!-- TELA 5: PRÊMIO -->
+<section class="tela" id="telaPremio">
+  <div class="caixa">
+    <div class="premio">🏆</div>
+    <h2>Parabéns! Você ganhou!</h2>
+    <p class="sub">Uma marmita de açaí de 700 g com os adicionais que você escolheu:</p>
+    <div class="resumo" id="resumoPremio"></div>
+    <button class="botao-gigante" id="btnReivindicar" style="font-size:1.4rem;margin-top:18px" onclick="reivindicar()">Toque aqui para reivindicar</button>
+    <div id="areaCodigo" style="display:none">
+      <p class="sub" style="margin-top:16px">Seu código de resgate:</p>
+      <div class="codigo" id="codigo"></div>
+      <p class="sub">Tire um print desta tela ou envie direto para a loja:</p>
+      <a class="botao" id="linkZap" target="_blank" rel="noopener">Enviar no WhatsApp da loja</a>
+    </div>
+    <button class="sair" onclick="sair()">Sair</button>
+  </div>
+</section>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* CONFIGURAÇÃO DO FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyAKWGI3yk5WOU8rQit5TAfxU1jUX1mUTpc",
+  authDomain: "sedex-do-acai-fidelidade.firebaseapp.com",
+  projectId: "sedex-do-acai-fidelidade",
+  messagingSenderId: "1067708455298",
+  appId: "1:1067708455298:web:4d5165eeb7eb2f4c57d79b"
+};
+
+const WHATSAPP='https://wa.me/556699614361';
+const ADICIONAIS=[
+  'Leite Condensado','Leite em Pó','Banana','Cobertura de Caramelo','Cobertura de Chocolate',
+  'Nutella','Creme de Leitinho','Creme de Morango','Creme de Chocolate','Creme de Pistache',
+  'Ovomaltine','Amendoim Torrado','Paçoca','Sucrilhos','Gotas de Chocolate','Bis Lacta',
+  'Leite Condensado Piracanjuba','Granola','Chocoboll','Kiwi','Uva','Confete'
+];
+const META=8, MAX=4;
+const params=new URLSearchParams(location.search);
+const TESTE=params.get('teste')==='1';
+let qrURL=(params.get('q')||'').toUpperCase().replace(/[^A-Z0-9-]/g,'');
+const db=TESTE?null:getFirestore(initializeApp(firebaseConfig));
+let escolhidos=[];
+let usuario=null;
+
+function ir(id){
+  document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
+  document.getElementById(id).classList.add('ativa');
+}
+
+/* DADOS: Firestore (ou localStorage no modo teste) */
+const lsKey=t=>'sedex_qr_teste_'+t;
+function salvarLocal(){localStorage.setItem(lsKey(usuario.telefone),JSON.stringify(usuario))}
+
+async function buscarCliente(tel){
+  if(TESTE){const d=localStorage.getItem(lsKey(tel));return d?JSON.parse(d):null}
+  const s=await getDoc(doc(db,'clientesqr',tel));
+  return s.exists()?s.data():null;
+}
+async function criarCliente(u){
+  if(TESTE){salvarLocal();return}
+  await setDoc(doc(db,'clientesqr',u.telefone),{
+    nome:u.nome,telefone:u.telefone,adicionais:u.adicionais,
+    compras:0,premioCodigo:null,criadoEm:serverTimestamp(),
+    ultimoQr:'',usosQr:0,qrsAntigos:[]
+  });
+  u.compras=0;u.ultimoQr='';u.usosQr=0;u.qrsAntigos=[];
+}
+/* ganha 1 carimbo usando o QR do dia (?q=QR-XXXXXXXX) */
+async function ganharCarimbo(){
+  if(!qrURL)return 'semqr';
+  if(TESTE){usuario.compras++;salvarLocal();qrURL='';return 'ok'}
+  const ref=doc(db,'clientesqr',usuario.telefone);
+  const s=await getDoc(ref);
+  const v=s.data();
+  if(v.compras>=META)return 'cheio';
+  let upd;
+  if(v.ultimoQr===qrURL){
+    if(v.usosQr>=3)return 'limite';
+    upd={compras:v.compras+1,ultimoQr:qrURL,usosQr:v.usosQr+1,qrsAntigos:v.qrsAntigos};
+  }else{
+    if((v.qrsAntigos||[]).includes(qrURL))return 'antigo';
+    const ant=v.ultimoQr===''?v.qrsAntigos:v.qrsAntigos.concat([v.ultimoQr]);
+    upd={compras:v.compras+1,ultimoQr:qrURL,usosQr:1,qrsAntigos:ant};
+  }
+  await updateDoc(ref,upd);
+  Object.assign(usuario,v,upd);
+  qrURL='';
+  return 'ok';
+}
+async function gravarPremio(c){
+  if(TESTE){usuario.premioCodigo=c;salvarLocal();return}
+  await updateDoc(doc(db,'clientesqr',usuario.telefone),{premioCodigo:c});
+  usuario.premioCodigo=c;
+}
+
+/* LOGIN */
+async function entrar(){
+  const nome=document.getElementById('nome').value.trim();
+  let tel=document.getElementById('telefone').value.replace(/\D/g,'');
+  if(tel.length>11&&tel.startsWith('55'))tel=tel.slice(2);
+  if(nome.length<2||tel.length<10||tel.length>11){alert('Preencha seu nome e telefone com DDD.');return}
+  const btn=document.getElementById('btnEntrar');btn.disabled=true;
+  try{
+    const c=await buscarCliente(tel);
+    if(c){usuario=c;await aplicarQr();mostrarCartao()}
+    else{usuario={nome:nome,telefone:tel,compras:0,adicionais:null,premioCodigo:null};montarEnquete();ir('telaEnquete')}
+  }catch(e){console.error(e);alert('Não foi possível conectar. Tente novamente.')}
+  btn.disabled=false;
+}
+
+
+let avisoQr='';
+async function aplicarQr(){
+  avisoQr='';
+  try{
+    const r=await ganharCarimbo();
+    if(r==='ok')avisoQr='Carimbo ganho! 🍇';
+    else if(r==='limite')avisoQr='Você já usou este QR 3 vezes. Peça o QR do próximo pedido.';
+    else if(r==='antigo')avisoQr='Este QR já foi usado antes. Peça o QR do dia ao entregador.';
+    else if(r==='cheio')avisoQr='';
+  }catch(e){console.error(e);avisoQr='QR inválido ou não foi possível registrar o carimbo.'}
+}
+
+/* ENQUETE (aparece uma única vez) */
+function montarEnquete(){
+  escolhidos=[];
+  const g=document.getElementById('grade');g.innerHTML='';
+  ADICIONAIS.forEach(nome=>{
+    const d=document.createElement('div');d.className='item';
+    d.innerHTML='<span class="marca"></span><span>'+nome+'</span>';
+    d.onclick=()=>alternar(nome,d);
+    g.appendChild(d);
+  });
+  atualizarEnquete();
+}
+function alternar(nome,el){
+  if(el.classList.contains('travado'))return;
+  const i=escolhidos.indexOf(nome);
+  if(i>=0){escolhidos.splice(i,1)}else if(escolhidos.length<MAX){escolhidos.push(nome)}
+  atualizarEnquete();
+}
+function atualizarEnquete(){
+  document.querySelectorAll('.item').forEach(el=>{
+    const nome=el.querySelector('span:last-child').textContent;
+    const sel=escolhidos.includes(nome);
+    el.classList.toggle('sel',sel);
+    el.querySelector('.marca').textContent=sel?'✓':'';
+    el.classList.toggle('travado',!sel&&escolhidos.length>=MAX);
+  });
+  document.getElementById('contador').textContent=escolhidos.length+' de '+MAX+' escolhidos';
+  document.getElementById('btnSalvar').disabled=escolhidos.length===0;
+}
+async function salvarEnquete(){
+  const btn=document.getElementById('btnSalvar');btn.disabled=true;
+  usuario.adicionais=escolhidos.slice();
+  try{await criarCliente(usuario);await aplicarQr();mostrarCartao()}
+  catch(e){console.error(e);alert('Não foi possível salvar. Tente novamente.');btn.disabled=false}
+}
+
+/* CARTÃO */
+function mostrarCartao(){
+  if(usuario.compras>=META){mostrarPremio();return}
+  document.getElementById('ola').textContent='Olá, '+usuario.nome.split(' ')[0]+'!';
+  const c=document.getElementById('cartao');c.innerHTML='';
+  for(let i=1;i<=META;i++){
+    const d=document.createElement('div');
+    d.className='carimbo'+(i<=usuario.compras?' cheio':'');
+    d.textContent=i<=usuario.compras?'🍇':i;
+    c.appendChild(d);
+  }
+  const faltam=META-usuario.compras;
+  document.getElementById('faltam').textContent=faltam===1?'Falta só 1 compra!':'Faltam '+faltam+' compras';
+  document.getElementById('resumo').textContent='Seus adicionais: '+usuario.adicionais.join(', ');
+  document.getElementById('msgCodigo').textContent=avisoQr;
+  ir('telaCartao');
+}
+/* PRÊMIO E CÓDIGO DE RESGATE */
+function gerarCodigo(){
+  const letras='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const a=new Uint32Array(4);crypto.getRandomValues(a);
+  let c='';a.forEach(n=>{c+=letras[n%letras.length]});
+  return 'SEDEX-'+c;
+}
+function mostrarPremio(){
+  document.getElementById('resumoPremio').textContent=usuario.adicionais.join(', ');
+  if(usuario.premioCodigo){exibirCodigo()}else{
+    document.getElementById('btnReivindicar').style.display='block';
+    document.getElementById('areaCodigo').style.display='none';
+  }
+  ir('telaPremio');
+}
+async function reivindicar(){
+  try{
+    if(!usuario.premioCodigo){await gravarPremio(gerarCodigo())}
+    exibirCodigo();
+  }catch(e){console.error(e);alert('Não foi possível gerar o código. Tente novamente.')}
+}
+function exibirCodigo(){
+  document.getElementById('codigo').textContent=usuario.premioCodigo;
+  document.getElementById('btnReivindicar').style.display='none';
+  document.getElementById('areaCodigo').style.display='block';
+  const msg='Olá! Sou '+usuario.nome+' ('+usuario.telefone+'). Completei as 8 compras do cartão fidelidade e quero resgatar minha marmita de açaí de 700 g. Código: '+usuario.premioCodigo+'. Adicionais: '+usuario.adicionais.join(', ')+'.';
+  document.getElementById('linkZap').href=WHATSAPP+'?text='+encodeURIComponent(msg);
+}
+
+function sair(){
+  usuario=null;
+  document.getElementById('nome').value='';
+  document.getElementById('telefone').value='';
+  ir('telaInicio');
+}
+
+if(TESTE){document.getElementById('faixaTeste').style.display='block'}
+
+/* o HTML chama estas funções pelos botões */
+Object.assign(window,{ir,entrar,salvarEnquete,reivindicar,sair});
+</script>
+</body>
+</html>
