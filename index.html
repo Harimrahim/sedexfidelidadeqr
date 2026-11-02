@@ -99,9 +99,9 @@ input:focus{border-color:var(--amarelo)}
   <img class="logo logo-pequena" src="logo.png" alt="Sedex do Açaí">
   <div class="caixa">
     <h2>Entrar</h2>
-    <p class="sub">Digite seus dados para acompanhar seu cartão fidelidade.</p>
-    <input id="nome" placeholder="Seu nome">
-    <input id="telefone" type="tel" placeholder="Seu telefone com DDD">
+    <p class="sub" id="subLogin">Digite seu telefone com DDD para abrir seu cartão fidelidade.</p>
+    <input id="telefone" type="tel" inputmode="numeric" placeholder="Seu telefone com DDD" oninput="resetarLogin()">
+    <input id="nome" placeholder="Como você gosta de ser chamado?" style="display:none">
     <button class="botao" id="btnEntrar" onclick="entrar()">Continuar</button>
   </div>
 </section>
@@ -129,6 +129,11 @@ input:focus{border-color:var(--amarelo)}
     <div class="resgate">
       <p class="sub">Fez outro pedido hoje? Peça ao entregador para mostrar o QR Code e escaneie de novo para ganhar mais 1 carimbo.</p>
       <div class="erro" id="msgCodigo"></div>
+    </div>
+    <div class="resgate">
+      <p class="sub">Salve o contato da loja e receba as promoções no WhatsApp:</p>
+      <button class="botao" onclick="salvarContato()">Salvar contato da loja</button>
+      <a class="botao" href="https://wa.me/556699614361" target="_blank" rel="noopener">Falar no WhatsApp</a>
     </div>
     <button class="sair" onclick="sair()">Sair</button>
   </div>
@@ -233,16 +238,35 @@ async function gravarPremio(c){
 }
 
 /* LOGIN */
+/* LOGIN: o telefone manda em tudo; o nome é só o jeito de a pessoa ser chamada */
+function limparTelefone(v){
+  let t=v.replace(/\D/g,'');
+  while(t.length>11&&t.startsWith('0'))t=t.slice(1);
+  if(t.length>11&&t.startsWith('55'))t=t.slice(2);
+  return t;
+}
+function resetarLogin(){
+  document.getElementById('nome').style.display='none';
+  document.getElementById('subLogin').textContent='Digite seu telefone com DDD para abrir seu cartão fidelidade.';
+}
 async function entrar(){
-  const nome=document.getElementById('nome').value.trim();
-  let tel=document.getElementById('telefone').value.replace(/\D/g,'');
-  if(tel.length>11&&tel.startsWith('55'))tel=tel.slice(2);
-  if(nome.length<2||tel.length<10||tel.length>11){alert('Preencha seu nome e telefone com DDD.');return}
+  const tel=limparTelefone(document.getElementById('telefone').value);
+  if(tel.length<10||tel.length>11){alert('Digite seu telefone com DDD.');return}
+  const campoNome=document.getElementById('nome');
   const btn=document.getElementById('btnEntrar');btn.disabled=true;
   try{
-    const c=await buscarCliente(tel);
-    if(c){usuario=c;await aplicarQr();mostrarCartao()}
-    else{usuario={nome:nome,telefone:tel,compras:0,adicionais:null,premioCodigo:null};montarEnquete();ir('telaEnquete')}
+    if(campoNome.style.display==='none'){
+      const c=await buscarCliente(tel);
+      if(c){usuario=c;await aplicarQr();mostrarCartao();btn.disabled=false;return}
+      campoNome.style.display='block';
+      document.getElementById('subLogin').textContent='Primeiro acesso! Como você gosta de ser chamado?';
+      campoNome.focus();
+    }else{
+      const nome=campoNome.value.trim();
+      if(nome.length<2){alert('Digite seu nome.');btn.disabled=false;return}
+      usuario={nome:nome,telefone:tel,compras:0,adicionais:null,premioCodigo:null};
+      montarEnquete();ir('telaEnquete');
+    }
   }catch(e){console.error(e);alert('Não foi possível conectar. Tente novamente.')}
   btn.disabled=false;
 }
@@ -342,17 +366,27 @@ function exibirCodigo(){
   document.getElementById('linkZap').href=WHATSAPP+'?text='+encodeURIComponent(msg);
 }
 
+
+function salvarContato(){
+  const v='BEGIN:VCARD\nVERSION:3.0\nFN:Sedex do Açaí\nORG:Sedex do Açaí\nTEL;TYPE=CELL:+556699614361\nEND:VCARD\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([v],{type:'text/vcard'}));
+  a.download='Sedex-do-Acai.vcf';
+  document.body.appendChild(a);a.click();a.remove();
+}
+
 function sair(){
   usuario=null;
   document.getElementById('nome').value='';
   document.getElementById('telefone').value='';
+  resetarLogin();
   ir('telaInicio');
 }
 
 if(TESTE){document.getElementById('faixaTeste').style.display='block'}
 
 /* o HTML chama estas funções pelos botões */
-Object.assign(window,{ir,entrar,salvarEnquete,reivindicar,sair});
+Object.assign(window,{ir,entrar,resetarLogin,salvarContato,salvarEnquete,reivindicar,sair});
 </script>
 </body>
 </html>
