@@ -133,7 +133,7 @@ input:focus{border-color:var(--amarelo)}
     <div class="resgate">
       <p class="sub">Salve o contato da loja e receba as promoções no WhatsApp:</p>
       <button class="botao" onclick="salvarContato()">Salvar contato da loja</button>
-      <a class="botao" href="https://wa.me/556699614361" target="_blank" rel="noopener">Falar no WhatsApp</a>
+      <button class="botao" onclick="salvarContato()">Salvar contato da loja</button>
     </div>
     <button class="sair" onclick="sair()">Sair</button>
   </div>
@@ -142,6 +142,7 @@ input:focus{border-color:var(--amarelo)}
 <!-- TELA 5: PRÊMIO -->
 <section class="tela" id="telaPremio">
   <div class="caixa">
+    <div id="areaParabens">
     <div class="premio">🏆</div>
     <h2>Parabéns! Você ganhou!</h2>
     <p class="sub">Uma marmita de açaí de 700 g com os adicionais que você escolheu:</p>
@@ -152,6 +153,13 @@ input:focus{border-color:var(--amarelo)}
       <div class="codigo" id="codigo"></div>
       <p class="sub">Tire um print desta tela ou envie direto para a loja:</p>
       <a class="botao" id="linkZap" target="_blank" rel="noopener">Enviar no WhatsApp da loja</a>
+    </div>
+    </div>
+    <div id="areaJaGanhou" style="display:none">
+      <div class="premio">🏆</div>
+      <h2>Você já faz parte do time de campeões do açaí!</h2>
+      <p class="sub">Esse número já resgatou a marmita da promoção. Que tal passar a chance para um amigo, ou cadastrar outro número seu? Continue acompanhando as novidades da Sedex do Açaí.</p>
+      <button class="botao" onclick="salvarContato()">Salvar contato da loja</button>
     </div>
     <button class="sair" onclick="sair()">Sair</button>
   </div>
@@ -174,11 +182,11 @@ const firebaseConfig = {
 const WHATSAPP='https://wa.me/556699614361';
 const ADICIONAIS=[
   'Leite Condensado','Leite em Pó','Banana','Cobertura de Caramelo','Cobertura de Chocolate',
-  'Nutella','Creme de Leitinho','Creme de Morango','Creme de Chocolate','Creme de Pistache',
+  'Creme de Leitinho','Creme de Morango','Creme de Chocolate','Creme de Pistache',
   'Ovomaltine','Amendoim Torrado','Paçoca','Sucrilhos','Gotas de Chocolate','Bis Lacta',
   'Leite Condensado Piracanjuba','Granola','Chocoboll','Kiwi','Uva','Confete'
 ];
-const META=8, MAX=4;
+const META=8, MAX=4, PAUSA_MS=5*60*1000;
 const params=new URLSearchParams(location.search);
 const TESTE=params.get('teste')==='1';
 let qrURL=(params.get('q')||'').toUpperCase().replace(/[^A-Z0-9-]/g,'');
@@ -205,9 +213,9 @@ async function criarCliente(u){
   await setDoc(doc(db,'clientesqr',u.telefone),{
     nome:u.nome,telefone:u.telefone,adicionais:u.adicionais,
     compras:0,premioCodigo:null,criadoEm:serverTimestamp(),
-    ultimoQr:'',usosQr:0,qrsAntigos:[]
+    ultimoQr:'',usosQr:0,qrsAntigos:[],ultimoCarimboEm:null
   });
-  u.compras=0;u.ultimoQr='';u.usosQr=0;u.qrsAntigos=[];
+  u.compras=0;u.ultimoQr='';u.usosQr=0;u.qrsAntigos=[];u.ultimoCarimboEm=null;
 }
 /* ganha 1 carimbo usando o QR do dia (?q=QR-XXXXXXXX) */
 async function ganharCarimbo(){
@@ -217,17 +225,19 @@ async function ganharCarimbo(){
   const s=await getDoc(ref);
   const v=s.data();
   if(v.compras>=META)return 'cheio';
+  if(v.ultimoCarimboEm&&v.ultimoCarimboEm.toMillis&&(Date.now()-v.ultimoCarimboEm.toMillis())<PAUSA_MS)return 'pausa';
   let upd;
   if(v.ultimoQr===qrURL){
     if(v.usosQr>=3)return 'limite';
-    upd={compras:v.compras+1,ultimoQr:qrURL,usosQr:v.usosQr+1,qrsAntigos:v.qrsAntigos};
+    upd={compras:v.compras+1,ultimoQr:qrURL,usosQr:v.usosQr+1,qrsAntigos:v.qrsAntigos,ultimoCarimboEm:serverTimestamp()};
   }else{
     if((v.qrsAntigos||[]).includes(qrURL))return 'antigo';
     const ant=v.ultimoQr===''?v.qrsAntigos:v.qrsAntigos.concat([v.ultimoQr]);
-    upd={compras:v.compras+1,ultimoQr:qrURL,usosQr:1,qrsAntigos:ant};
+    upd={compras:v.compras+1,ultimoQr:qrURL,usosQr:1,qrsAntigos:ant,ultimoCarimboEm:serverTimestamp()};
   }
   await updateDoc(ref,upd);
-  Object.assign(usuario,v,upd);
+  const novo=await getDoc(ref);
+  Object.assign(usuario,novo.data());
   qrURL='';
   return 'ok';
 }
@@ -280,6 +290,7 @@ async function aplicarQr(){
     if(r==='ok')avisoQr='Carimbo ganho! 🍇';
     else if(r==='limite')avisoQr='Você já usou este QR 3 vezes. Peça o QR do próximo pedido.';
     else if(r==='antigo')avisoQr='Este QR já foi usado antes. Peça o QR do dia ao entregador.';
+    else if(r==='pausa')avisoQr='Aguarde alguns minutos para registrar outro pedido.';
     else if(r==='cheio')avisoQr='';
   }catch(e){console.error(e);avisoQr='QR inválido ou não foi possível registrar o carimbo.'}
 }
@@ -344,17 +355,23 @@ function gerarCodigo(){
   let c='';a.forEach(n=>{c+=letras[n%letras.length]});
   return 'SEDEX-'+c;
 }
+let acabouDeGanhar=false;
 function mostrarPremio(){
-  document.getElementById('resumoPremio').textContent=usuario.adicionais.join(', ');
-  if(usuario.premioCodigo){exibirCodigo()}else{
-    document.getElementById('btnReivindicar').style.display='block';
-    document.getElementById('areaCodigo').style.display='none';
+  const jaGanhou=!!usuario.premioCodigo&&!acabouDeGanhar;
+  document.getElementById('areaParabens').style.display=jaGanhou?'none':'block';
+  document.getElementById('areaJaGanhou').style.display=jaGanhou?'block':'none';
+  if(!jaGanhou){
+    document.getElementById('resumoPremio').textContent=usuario.adicionais.join(', ');
+    if(usuario.premioCodigo){exibirCodigo()}else{
+      document.getElementById('btnReivindicar').style.display='block';
+      document.getElementById('areaCodigo').style.display='none';
+    }
   }
   ir('telaPremio');
 }
 async function reivindicar(){
   try{
-    if(!usuario.premioCodigo){await gravarPremio(gerarCodigo())}
+    if(!usuario.premioCodigo){await gravarPremio(gerarCodigo());acabouDeGanhar=true}
     exibirCodigo();
   }catch(e){console.error(e);alert('Não foi possível gerar o código. Tente novamente.')}
 }
@@ -376,7 +393,7 @@ function salvarContato(){
 }
 
 function sair(){
-  usuario=null;
+  usuario=null;acabouDeGanhar=false;
   document.getElementById('nome').value='';
   document.getElementById('telefone').value='';
   resetarLogin();
